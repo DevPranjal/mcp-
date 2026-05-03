@@ -1,11 +1,11 @@
-# SEP-0000: MCP Skills - Progressive Disclosure for Servers via Resources
+# SEP-1: MCP Skills - Progressive Disclosure for Servers via Resources
 
 - **Status**: Draft
 - **Type**: Standards Track
 - **Created**: 2026-05-03
 - **Author(s)**: @DevPranjal
 - **Sponsor**: None (seeking sponsor)
-- **PR**: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/0000
+- **PR**: https://github.com/DevPranjal/mcp-/pull/1
 
 ## Abstract
 
