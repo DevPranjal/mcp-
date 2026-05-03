@@ -143,7 +143,7 @@ skill are resolved relative to the skill root, exactly as in the Agent Skills sp
 ### 3. The `_meta` marker
 
 Every resource that participates in a skill MUST include the following entry in its `_meta`
-field (using a vendor prefix per SEP-2133):
+field (using a vendor prefix per [SEP-2133 (Extensions)](./2133-extensions.md)):
 
 ```json
 {
