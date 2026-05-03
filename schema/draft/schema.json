@@ -470,6 +470,9 @@
                     "$ref": "#/$defs/GetPromptRequest"
                 },
                 {
+                    "$ref": "#/$defs/ListSkillsRequest"
+                },
+                {
                     "$ref": "#/$defs/ListToolsRequest"
                 },
                 {
@@ -2160,6 +2163,74 @@
             ],
             "type": "object"
         },
+        "ListSkillsRequest": {
+            "description": "Sent from the client to request a metadata-only listing of skills the server\nprovides. The response MUST contain only parsed frontmatter for each skill —\nnever the `SKILL.md` body or any bundled file in `scripts/`, `references/`,\nor `assets/`. This is the protocol-level guarantee that listing a skill\nnever leaks more than ~100 tokens of context per skill.",
+            "properties": {
+                "id": {
+                    "$ref": "#/$defs/RequestId"
+                },
+                "jsonrpc": {
+                    "const": "2.0",
+                    "type": "string"
+                },
+                "method": {
+                    "const": "skills/list",
+                    "type": "string"
+                },
+                "params": {
+                    "$ref": "#/$defs/PaginatedRequestParams"
+                }
+            },
+            "required": [
+                "id",
+                "jsonrpc",
+                "method"
+            ],
+            "type": "object"
+        },
+        "ListSkillsResult": {
+            "description": "The result returned by the server for a {@link ListSkillsRequestskills/list} request.",
+            "properties": {
+                "_meta": {
+                    "$ref": "#/$defs/MetaObject"
+                },
+                "nextCursor": {
+                    "description": "An opaque token representing the pagination position after the last returned result.\nIf present, there may be more results available.",
+                    "type": "string"
+                },
+                "skills": {
+                    "items": {
+                        "$ref": "#/$defs/Skill"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "skills"
+            ],
+            "type": "object"
+        },
+        "ListSkillsResultResponse": {
+            "description": "A successful response from the server for a {@link ListSkillsRequestskills/list} request.",
+            "properties": {
+                "id": {
+                    "$ref": "#/$defs/RequestId"
+                },
+                "jsonrpc": {
+                    "const": "2.0",
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/$defs/ListSkillsResult"
+                }
+            },
+            "required": [
+                "id",
+                "jsonrpc",
+                "result"
+            ],
+            "type": "object"
+        },
         "ListTasksRequest": {
             "description": "A request to retrieve a list of tasks.",
             "properties": {
@@ -3389,6 +3460,16 @@
                     },
                     "type": "object"
                 },
+                "skills": {
+                    "description": "Present if the server offers any skills (per SEP-1, MCP Skills —\nProgressive Disclosure for Servers via Resources). Skills are surfaced as\nresources under the `skill://` URI scheme; this capability advertises that\nthe server additionally implements the {@link ListSkillsRequestskills/list}\nconvenience method that returns metadata-only entries (frontmatter, never\n`SKILL.md` bodies).",
+                    "properties": {
+                        "listChanged": {
+                            "description": "Whether this server supports notifications for changes to the skill list.",
+                            "type": "boolean"
+                        }
+                    },
+                    "type": "object"
+                },
                 "tasks": {
                     "description": "Present if the server supports task-augmented requests.",
                     "properties": {
@@ -3448,6 +3529,9 @@
                 },
                 {
                     "$ref": "#/$defs/PromptListChangedNotification"
+                },
+                {
+                    "$ref": "#/$defs/SkillListChangedNotification"
                 },
                 {
                     "$ref": "#/$defs/ToolListChangedNotification"
@@ -3513,6 +3597,9 @@
                 },
                 {
                     "$ref": "#/$defs/GetPromptResult"
+                },
+                {
+                    "$ref": "#/$defs/ListSkillsResult"
                 },
                 {
                     "$ref": "#/$defs/ListToolsResult"
@@ -3614,6 +3701,88 @@
                     "$ref": "#/$defs/TitledSingleSelectEnumSchema"
                 }
             ]
+        },
+        "Skill": {
+            "description": "A single skill entry returned by {@link ListSkillsRequestskills/list}.\n\nThe entry carries only the addressable URI of the manifest plus the parsed\nfrontmatter, never the `SKILL.md` body. Clients fetch the body on demand via\nan ordinary `resources/read` against the `uri`.",
+            "properties": {
+                "_meta": {
+                    "$ref": "#/$defs/MetaObject"
+                },
+                "frontmatter": {
+                    "$ref": "#/$defs/SkillFrontmatter",
+                    "description": "Parsed YAML frontmatter of the skill's `SKILL.md`. Servers MUST validate\nthis against the Agent Skills frontmatter rules before emitting it."
+                },
+                "name": {
+                    "description": "The skill's machine-readable name. MUST equal `frontmatter.name` and the\n`{name}` segment of {@link Skill.uri}.",
+                    "type": "string"
+                },
+                "uri": {
+                    "description": "The URI of the skill manifest, of the form `skill://{name}/SKILL.md`.",
+                    "format": "uri",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "frontmatter",
+                "name",
+                "uri"
+            ],
+            "type": "object"
+        },
+        "SkillFrontmatter": {
+            "additionalProperties": {},
+            "description": "The parsed YAML frontmatter of an Agent Skill's `SKILL.md` manifest, as\nsurfaced by SEP-1 (MCP Skills — Progressive Disclosure for Servers via\nResources). The fields mirror the Agent Skills specification\n([agentskills.io](https://agentskills.io/specification)) so that the same\nskill directory can be served locally or remotely with no edits.\n\nServers MUST NOT include the `SKILL.md` body or any bundled file in this\nobject — that is the whole point of progressive disclosure: listing a skill\nstays at ~100 tokens regardless of body size.",
+            "properties": {
+                "allowed-tools": {
+                    "description": "Optional experimental list of fully-qualified MCP tool names this skill is\npermitted to invoke once activated. See SEP-1 §7 for the relationship to\ntool gating.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "compatibility": {
+                    "description": "Optional human-readable statement of runtime/environment requirements\n(e.g. \"Requires Python 3.11; network access not required.\"). Clients\nSHOULD parse this and refuse activation when stated requirements are not\nmet. SHOULD be ≤ 500 characters per the Agent Skills spec.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Short, agent-facing description of what the skill does and when it should\nbe selected. Loaded into model context during skill discovery, so it\nSHOULD be ≤ 1024 characters per the Agent Skills spec.",
+                    "type": "string"
+                },
+                "license": {
+                    "description": "Optional SPDX license identifier or short license string for the skill\ncontents.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Machine-readable identifier for the skill. MUST match `[a-z0-9-]{1,64}`\nwith no leading/trailing or consecutive hyphens, and MUST equal the\n`{name}` segment of the skill's `skill://{name}/SKILL.md` URI.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "description",
+                "name"
+            ],
+            "type": "object"
+        },
+        "SkillListChangedNotification": {
+            "description": "An optional notification from the server to the client, informing it that\nthe list of skills it offers has changed (e.g. a skill was published or\nremoved). May be issued by servers without any previous subscription.\n\nClients SHOULD re-call {@link ListSkillsRequestskills/list} on receipt.",
+            "properties": {
+                "jsonrpc": {
+                    "const": "2.0",
+                    "type": "string"
+                },
+                "method": {
+                    "const": "notifications/skills/list_changed",
+                    "type": "string"
+                },
+                "params": {
+                    "$ref": "#/$defs/NotificationParams"
+                }
+            },
+            "required": [
+                "jsonrpc",
+                "method"
+            ],
+            "type": "object"
         },
         "StringSchema": {
             "properties": {

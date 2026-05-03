@@ -1,28 +1,39 @@
-# Model Context Protocol (MCP)
+# MCP Skills — fork of `modelcontextprotocol/modelcontextprotocol`
 
-_Just heard of MCP and not sure where to start? Check out our [documentation website](https://modelcontextprotocol.io)._
+This fork adds **SEP-1: MCP Skills — Progressive Disclosure for Servers via Resources** to
+the MCP draft schema.
 
-This repo contains the:
+## What was added
 
-- MCP specification
-- MCP protocol schema
-- Official MCP documentation
+- `seps/1-mcp-skills-progressive-disclosure.md` — the SEP itself (rendered at
+  `docs/seps/1-mcp-skills-progressive-disclosure.mdx`).
+- `schema/draft/schema.ts` — new draft protocol surface:
+  - `ServerCapabilities.skills?: { listChanged?: boolean }`
+  - `Skill`, `SkillFrontmatter`
+  - `skills/list` request / result / response (paginated, frontmatter-only)
+  - `notifications/skills/list_changed`
+- `schema/draft/examples/{Skill,ListSkillsRequest,ListSkillsResult,ListSkillsResultResponse,SkillListChangedNotification,ServerCapabilities/skills-*}` — JSON examples.
+- Regenerated `schema/draft/schema.json` and `docs/specification/draft/schema.mdx`.
 
-The schema is [defined in TypeScript](schema/2025-11-25/schema.ts) first, but
-[made available as JSON Schema](schema/2025-11-25/schema.json) as well, for wider
-compatibility.
+## How to use
 
-The official MCP documentation is built using Mintlify and available at
-[modelcontextprotocol.io](https://modelcontextprotocol.io).
+```bash
+npm install
+npm run check:schema   # validate types, JSON schema, examples, MDX
+npm run check:seps     # validate SEP rendering
+npm run serve:docs     # preview the docs site (incl. SEP-1)
+```
 
-## Authors
+After editing `schema/draft/schema.ts` or `seps/`, regenerate artifacts:
 
-The Model Context Protocol was created by David Soria Parra ([@dsp](https://github.com/dsp)) and Justin Spahr-Summers ([@jspahrsummers](https://github.com/jspahrsummers)).
+```bash
+npm run generate:schema   # JSON + MDX
+npm run generate:seps     # SEP MDX + nav
+```
 
-## Contributing
+## Upstream
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
+For the full MCP specification, docs, and tooling, see the upstream project at
+[modelcontextprotocol.io](https://modelcontextprotocol.io) and
+[CONTRIBUTING.md](./CONTRIBUTING.md). This project is licensed under the
+[MIT License](LICENSE).

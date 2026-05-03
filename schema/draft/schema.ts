@@ -672,6 +672,26 @@ export interface ServerCapabilities {
     listChanged?: boolean;
   };
   /**
+   * Present if the server offers any skills (per SEP-1, MCP Skills —
+   * Progressive Disclosure for Servers via Resources). Skills are surfaced as
+   * resources under the `skill://` URI scheme; this capability advertises that
+   * the server additionally implements the {@link ListSkillsRequest | skills/list}
+   * convenience method that returns metadata-only entries (frontmatter, never
+   * `SKILL.md` bodies).
+   *
+   * @example Skills — minimum baseline support
+   * {@includeCode ./examples/ServerCapabilities/skills-minimum-baseline-support.json}
+   *
+   * @example Skills — list changed notifications
+   * {@includeCode ./examples/ServerCapabilities/skills-list-changed-notifications.json}
+   */
+  skills?: {
+    /**
+     * Whether this server supports notifications for changes to the skill list.
+     */
+    listChanged?: boolean;
+  };
+  /**
    * Present if the server supports task-augmented requests.
    */
   tasks?: {
@@ -1492,6 +1512,148 @@ export interface EmbeddedResource {
  */
 export interface PromptListChangedNotification extends JSONRPCNotification {
   method: "notifications/prompts/list_changed";
+  params?: NotificationParams;
+}
+
+/* Skills */
+/**
+ * The parsed YAML frontmatter of an Agent Skill's `SKILL.md` manifest, as
+ * surfaced by SEP-1 (MCP Skills — Progressive Disclosure for Servers via
+ * Resources). The fields mirror the Agent Skills specification
+ * ([agentskills.io](https://agentskills.io/specification)) so that the same
+ * skill directory can be served locally or remotely with no edits.
+ *
+ * Servers MUST NOT include the `SKILL.md` body or any bundled file in this
+ * object — that is the whole point of progressive disclosure: listing a skill
+ * stays at ~100 tokens regardless of body size.
+ *
+ * @category `skills/list`
+ */
+export interface SkillFrontmatter {
+  /**
+   * Machine-readable identifier for the skill. MUST match `[a-z0-9-]{1,64}`
+   * with no leading/trailing or consecutive hyphens, and MUST equal the
+   * `{name}` segment of the skill's `skill://{name}/SKILL.md` URI.
+   */
+  name: string;
+  /**
+   * Short, agent-facing description of what the skill does and when it should
+   * be selected. Loaded into model context during skill discovery, so it
+   * SHOULD be ≤ 1024 characters per the Agent Skills spec.
+   */
+  description: string;
+  /**
+   * Optional SPDX license identifier or short license string for the skill
+   * contents.
+   */
+  license?: string;
+  /**
+   * Optional human-readable statement of runtime/environment requirements
+   * (e.g. "Requires Python 3.11; network access not required."). Clients
+   * SHOULD parse this and refuse activation when stated requirements are not
+   * met. SHOULD be ≤ 500 characters per the Agent Skills spec.
+   */
+  compatibility?: string;
+  /**
+   * Optional experimental list of fully-qualified MCP tool names this skill is
+   * permitted to invoke once activated. See SEP-1 §7 for the relationship to
+   * tool gating.
+   */
+  "allowed-tools"?: string[];
+  /**
+   * Free-form additional fields permitted by the Agent Skills frontmatter.
+   * Clients MUST ignore unknown fields.
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * A single skill entry returned by {@link ListSkillsRequest | skills/list}.
+ *
+ * The entry carries only the addressable URI of the manifest plus the parsed
+ * frontmatter, never the `SKILL.md` body. Clients fetch the body on demand via
+ * an ordinary `resources/read` against the `uri`.
+ *
+ * @example Skill list entry
+ * {@includeCode ./examples/Skill/pdf-extractor.json}
+ *
+ * @category `skills/list`
+ */
+export interface Skill {
+  /**
+   * The skill's machine-readable name. MUST equal `frontmatter.name` and the
+   * `{name}` segment of {@link Skill.uri}.
+   */
+  name: string;
+  /**
+   * The URI of the skill manifest, of the form `skill://{name}/SKILL.md`.
+   *
+   * @format uri
+   */
+  uri: string;
+  /**
+   * Parsed YAML frontmatter of the skill's `SKILL.md`. Servers MUST validate
+   * this against the Agent Skills frontmatter rules before emitting it.
+   */
+  frontmatter: SkillFrontmatter;
+
+  _meta?: MetaObject;
+}
+
+/**
+ * Sent from the client to request a metadata-only listing of skills the server
+ * provides. The response MUST contain only parsed frontmatter for each skill —
+ * never the `SKILL.md` body or any bundled file in `scripts/`, `references/`,
+ * or `assets/`. This is the protocol-level guarantee that listing a skill
+ * never leaks more than ~100 tokens of context per skill.
+ *
+ * @example List skills request
+ * {@includeCode ./examples/ListSkillsRequest/list-skills-request.json}
+ *
+ * @category `skills/list`
+ */
+export interface ListSkillsRequest extends PaginatedRequest {
+  method: "skills/list";
+}
+
+/**
+ * The result returned by the server for a {@link ListSkillsRequest | skills/list} request.
+ *
+ * @example Skills list with cursor
+ * {@includeCode ./examples/ListSkillsResult/skills-list-with-cursor.json}
+ *
+ * @category `skills/list`
+ */
+export interface ListSkillsResult extends PaginatedResult {
+  skills: Skill[];
+}
+
+/**
+ * A successful response from the server for a {@link ListSkillsRequest | skills/list} request.
+ *
+ * @example List skills result response
+ * {@includeCode ./examples/ListSkillsResultResponse/list-skills-result-response.json}
+ *
+ * @category `skills/list`
+ */
+export interface ListSkillsResultResponse extends JSONRPCResultResponse {
+  result: ListSkillsResult;
+}
+
+/**
+ * An optional notification from the server to the client, informing it that
+ * the list of skills it offers has changed (e.g. a skill was published or
+ * removed). May be issued by servers without any previous subscription.
+ *
+ * Clients SHOULD re-call {@link ListSkillsRequest | skills/list} on receipt.
+ *
+ * @example Skills list changed
+ * {@includeCode ./examples/SkillListChangedNotification/skills-list-changed.json}
+ *
+ * @category `notifications/skills/list_changed`
+ */
+export interface SkillListChangedNotification extends JSONRPCNotification {
+  method: "notifications/skills/list_changed";
   params?: NotificationParams;
 }
 
@@ -3217,6 +3379,7 @@ export type ClientRequest =
   | UnsubscribeRequest
   | CallToolRequest
   | ListToolsRequest
+  | ListSkillsRequest
   | GetTaskRequest
   | GetTaskPayloadRequest
   | ListTasksRequest
@@ -3262,6 +3425,7 @@ export type ServerNotification =
   | ResourceListChangedNotification
   | ToolListChangedNotification
   | PromptListChangedNotification
+  | SkillListChangedNotification
   | ElicitationCompleteNotification
   | TaskStatusNotification;
 
@@ -3278,6 +3442,7 @@ export type ServerResult =
   | CallToolResult
   | CreateTaskResult
   | ListToolsResult
+  | ListSkillsResult
   | GetTaskResult
   | GetTaskPayloadResult
   | ListTasksResult
