@@ -1,0 +1,19 @@
+{
+  "jsonrpc": "2.0",
+  "id": "list-skills-example",
+  "result": {
+    "skills": [
+      {
+        "name": "pdf-extractor",
+        "uri": "skill://pdf-extractor/SKILL.md",
+        "frontmatter": {
+          "name": "pdf-extractor",
+          "description": "Extracts structured data from PDF invoices and receipts. Use when the user asks to parse, summarize, or pull line items from PDF documents.",
+          "license": "MIT",
+          "compatibility": "Requires Python 3.11; network access not required."
+        }
+      }
+    ],
+    "nextCursor": "next-page-cursor"
+  }
+}
